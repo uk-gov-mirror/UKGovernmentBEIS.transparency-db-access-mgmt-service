@@ -14,25 +14,26 @@ import uk.gov.service.notify.SendEmailResponse;
 @Slf4j
 public class EmailUtils {
 
-	public static void sendEmail(String emailId, Environment environment) throws NotificationClientException {
-		NotificationClient client = new NotificationClient(environment.getProperty("apiKey"));
-		SendEmailResponse response = client.sendEmail(environment.getProperty("templateId"), emailId, null, null);
+	public static void sendEmail(String emailId, String status,Long awardNumber, String userName,Environment environment) throws NotificationClientException {
 
-		log.info("response :: " + response.getBody());
-	}
-
-	public static void sendEmail(String emailId, String passWord, Environment environment) throws NotificationClientException {
-
+		String templateId = "";
+		String apiKey ="beis_notification-acabb994-cf6a-4d65-8632-1cc3ece74aa5-ef624de5-91dd-4f1b-8279-d970ee3949d5";
+		NotificationClient client = new NotificationClient(apiKey);
 		Map<String, Object> personalisation = new HashMap<>();
-		personalisation.put("default_pass", passWord);
-
-		NotificationClient client = new NotificationClient(environment.getProperty("apiKey"));
-		SendEmailResponse response = client.sendEmail(environment.getProperty("new-user-mail-template"), emailId,
-				personalisation, null);
+		personalisation.put("award_number", awardNumber);
+		personalisation.put("approver_name", userName);
+		if (status.equals("Published")) {
+			templateId =  "5dd4c65e-4cd7-4954-9820-d958ac4fc0d9"; //environment.getProperty("award_approved_template");
+		} else if(status.equals("Rejected")) {
+			templateId = environment.getProperty("award_reject_template");
+		}
+		SendEmailResponse response = client.sendEmail(templateId, emailId, personalisation, null);
 
 		log.info("response :: " + response.getBody());
 	}
-	
+
+
+
 public static void sendFeedBack(String feedBack,String comments,String apiKey,String template, Environment environment) throws NotificationClientException {
 	
 		log.info("inside  sendFeedBack ***** email * :: ");

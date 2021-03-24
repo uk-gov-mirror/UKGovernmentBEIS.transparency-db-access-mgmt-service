@@ -180,7 +180,7 @@ public class AccessManagementController {
          String accessToken= getBearerToken();
 
         ResponseEntity<Object> objectResponseEntity =  accessManagementService.updateAwardDetailsByAwardId(awardNumber,
-                awardUpdateRequest,accessToken);
+                awardUpdateRequest,userPrincipleResp.getUserName(),accessToken);
         //Audit entry
         StringBuilder eventMsg = new StringBuilder(awardNumber.toString()).append(" Award status ")
                 .append(" updated to ")

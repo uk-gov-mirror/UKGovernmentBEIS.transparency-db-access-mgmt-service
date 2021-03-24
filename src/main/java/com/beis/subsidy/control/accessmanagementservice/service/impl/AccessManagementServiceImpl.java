@@ -16,27 +16,19 @@ import com.beis.subsidy.control.accessmanagementservice.repository.AwardReposito
 import com.beis.subsidy.control.accessmanagementservice.repository.GrantingAuthorityRepository;
 import com.beis.subsidy.control.accessmanagementservice.repository.SubsidyMeasureRepository;
 import com.beis.subsidy.control.accessmanagementservice.request.UpdateAwardDetailsRequest;
-import com.beis.subsidy.control.accessmanagementservice.response.AuditLogsResultsResponse;
-import com.beis.subsidy.control.accessmanagementservice.response.GrantingAuthorityResponse;
-import com.beis.subsidy.control.accessmanagementservice.response.SearchSubsidyResultsResponse;
-import com.beis.subsidy.control.accessmanagementservice.response.UserDetailsResponse;
-import com.beis.subsidy.control.accessmanagementservice.response.SearchResults;
+import com.beis.subsidy.control.accessmanagementservice.response.*;
 import com.beis.subsidy.control.accessmanagementservice.service.AccessManagementService;
-import com.beis.subsidy.control.accessmanagementservice.utils.SearchUtils;
-import com.beis.subsidy.control.accessmanagementservice.utils.UserPrinciple;
+import com.beis.subsidy.control.accessmanagementservice.utils.*;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import feign.FeignException;
 import feign.Response;
 
-import com.beis.subsidy.control.accessmanagementservice.utils.AccessManagementConstant;
-import com.beis.subsidy.control.accessmanagementservice.utils.SubsidyMeasureSpecificationUtils;
-import com.beis.subsidy.control.accessmanagementservice.utils.AwardSpecificationUtils;
-import com.beis.subsidy.control.accessmanagementservice.utils.GACreatedBySpecification;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +38,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import uk.gov.service.notify.NotificationClientException;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,6 +51,7 @@ import java.util.Objects;
 @Service
 @Slf4j
 public class AccessManagementServiceImpl implements AccessManagementService {
+
     @Autowired
     private GrantingAuthorityRepository grantingAuthorityRepository;
 
@@ -65,6 +60,9 @@ public class AccessManagementServiceImpl implements AccessManagementService {
 
     @Autowired
     private SubsidyMeasureRepository subsidyMeasureRepository;
+
+    @Autowired
+    private UserManagementServiceImpl userManagementService;
 
     @Value("${loggingComponentName}")
     private String loggingComponentName;
@@ -75,6 +73,8 @@ public class AccessManagementServiceImpl implements AccessManagementService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    Environment environment;
 
     @Autowired
     GraphAPIFeignClient graphAPIFeignClient;
@@ -164,7 +164,8 @@ public class AccessManagementServiceImpl implements AccessManagementService {
     }
 
     @Override
-    public ResponseEntity<Object> updateAwardDetailsByAwardId(Long awardId, UpdateAwardDetailsRequest awardUpdateRequest,String accessToken) {
+    public ResponseEntity<Object> updateAwardDetailsByAwardId(Long awardId, UpdateAwardDetailsRequest awardUpdateRequest
+            ,String userName,String accessToken) {
         Award award = awardRepository.findByAwardNumber(awardId);
         if (Objects.isNull(award)) {
 
@@ -221,17 +222,23 @@ public class AccessManagementServiceImpl implements AccessManagementService {
         awardRepository.save(award);
 
         //notification call START here
-       /* UserDetailsResponse userDetailsResponse =getUserRolesByGrpId(accessToken,grantingAuthority.getAzureGroupId());
-        List<UserResponse> users= userDetailsResponse.getUserProfiles();
+        UserDetailsResponse userDetailsResponse =getUserRolesByGrpId(accessToken,grantingAuthority.getAzureGroupId());
+        UserDetailsResponse response =  userManagementService.getUserRolesByGrpId(accessToken,grantingAuthority.getAzureGroupId());
+        List<UserResponse> users= response.getUserProfiles();
 
         for (UserResponse userResponse : users) {
-            try {
-      		  log.info(":email sending to  {}",userResponse.getMail());
-  			  EmailUtils.sendEmail(userResponse.getMail());
-  		    } catch (NotificationClientException e) {
+              if (!StringUtils.isEmpty(userResponse.getRoleName()) &&
+                      userResponse.getRoleName().contains("GrantingAuthorityEncoders") ||
+                      userResponse.getRoleName().contains("GrantingAuthorityApprovers")) {
+                  try {
+                      log.info("{}::email sending to",loggingComponentName);
+                      EmailUtils.sendEmail(userResponse.getMail(),awardUpdateRequest.getStatus(),awardId,userName,environment);
+                  } catch (NotificationClientException e) {
+                      log.error("error in sending feedback mail", e);
+                  }
+              }
 
-  		    }
-        }*/
+        }
         //end Notification
         return ResponseEntity.status(200).build();
     }

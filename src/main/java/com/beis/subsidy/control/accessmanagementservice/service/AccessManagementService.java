@@ -18,7 +18,7 @@ public interface AccessManagementService {
 
     SearchResults findGAAdminDashboardData(UserPrinciple userPrincipleObj);
 
-    ResponseEntity<Object> updateAwardDetailsByAwardId(Long awardId, UpdateAwardDetailsRequest awardUpdateRequest,String accessToken);
+    ResponseEntity<Object> updateAwardDetailsByAwardId(Long awardId, UpdateAwardDetailsRequest awardUpdateRequest,String name,String accessToken);
 
     SearchResults findGAApproverDashboardData(UserPrinciple userPrincipleObj);
 
